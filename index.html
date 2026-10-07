@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#0c1016">
+<meta name="theme-color" content="#0b0f17">
+<meta name="color-scheme" content="dark">
 <title>Minha Pizza de Investimentos</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&display=swap">
@@ -88,6 +89,10 @@ input{font:500 15px var(--f-body);padding:10px 12px;border:1px solid var(--line)
 .priv{margin:8px 0 0;font-size:13px;color:var(--muted)}
 .foot{text-align:center;color:var(--muted);font-size:12px;letter-spacing:.16em;text-transform:uppercase}
 @media (prefers-reduced-motion:no-preference){.donut path{transition:d .4s}.bar i{transition:width .4s}}
+:root,:root[data-theme="light"],:root[data-theme="dark"]{
+  --bg:#0b0f17; --surface:#121826; --fg:#f2f5fa; --muted:#9aa6ba; --line:#243049; --accent:#2fd36b;
+  --c-fixos:#2f6df6; --c-invest:#2fbf55; --c-conforto:#f2c20f; --c-metas:#f7801a; --c-prazeres:#e8424a; --c-conhec:#8b4ff0;
+  --warn:#ff8a4c; color-scheme:dark}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;padding-top:max(24px,env(safe-area-inset-top));padding-bottom:max(48px,env(safe-area-inset-bottom))}
 [hidden]{display:none!important}
@@ -199,7 +204,7 @@ body{margin:0;padding-top:max(24px,env(safe-area-inset-top));padding-bottom:max(
 /* ===== CONFIGURAÇÃO — cole aqui os dados do seu projeto Supabase =====
    Supabase > Project Settings > API (ou "Connect") */
 const SUPABASE_URL = "https://eowhtjpysaqbgnynobdd.supabase.co";
-const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImVvd2h0anB5c2FxYmdueW5vYmRkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE0MDIzNTUsImV4cCI6MjEwNjk3ODM1NX0.fLXyERXvQcpqUtdI-tXM3aQuvd4tOHQdEm2Q2UJjLX4";
+const SUPABASE_ANON_KEY = "COLE_AQUI_A_ANON_PUBLIC_KEY";
 /* ===================================================================== */
 
 const CATS=[
@@ -211,6 +216,7 @@ const CATS=[
   {id:"conhec",nome:"Conhecimento",meta:5,cor:"--c-conhec",desc:"Livros, cursos, estudos"}
 ];
 const $=id=>document.getElementById(id);
+const esc=t=>String(t).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
 const brl=n=>n.toLocaleString("pt-BR",{style:"currency",currency:"BRL"});
 const parseBRL=s=>{s=String(s||"").trim().replace(/[R$\s]/g,"");if(s.includes(","))s=s.replace(/\./g,"").replace(",",".");const n=parseFloat(s);return isFinite(n)?Math.round(n*100)/100:NaN};
 const ymd=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
@@ -273,7 +279,7 @@ function render(){
     del.onclick=async()=>{
       if(el.dataset.c!=="1"){el.dataset.c="1";del.textContent="✓";del.title="Toque de novo para excluir";setTimeout(()=>{if(el.isConnected){el.dataset.c="";del.textContent="×"}},2500);return}
       const{error}=await sb.from("gastos").delete().eq("id",g.id);
-      if(error){$("msg").textContent="Não deu para excluir agora. Tente de novo.";return}
+      if(error){$("msg").textContent="Não deu para excluir: "+error.message;return}
       gastos=gastos.filter(x=>x.id!==g.id);render();
     };
     L.appendChild(el)});
@@ -284,7 +290,7 @@ async function carregar(){
     sb.from("gastos").select("id,valor,cat,descricao,data,criado").order("data",{ascending:false}).limit(5000),
     sb.from("perfis").select("renda").maybeSingle()
   ]);
-  if(g.error){$("list").innerHTML=`<div class="empty err">Não consegui carregar os gastos. Recarregue a página.</div>`;return}
+  if(g.error){render();$("list").innerHTML=`<div class="empty err">Não consegui ler os gastos do banco: ${esc(g.error.message)}</div>`;console.error(g.error);return}
   gastos=g.data.map(x=>({...x,valor:Number(x.valor)}));
   renda=p.data&&p.data.renda?Number(p.data.renda):0;
   $("renda").value=renda?renda.toLocaleString("pt-BR",{minimumFractionDigits:2}):"";
@@ -309,7 +315,7 @@ $("form").addEventListener("submit",async e=>{
   const novo={valor:v,cat:catSel,descricao:$("desc").value.trim().slice(0,80)||null,data:$("data").value||ymd(new Date())};
   const{data,error}=await sb.from("gastos").insert(novo).select("id,valor,cat,descricao,data,criado").single();
   $("salvar").disabled=false;
-  if(error){$("msg").textContent="Não deu para salvar. Confira a internet e tente de novo.";return}
+  if(error){$("msg").textContent="Não deu para salvar: "+error.message;console.error(error);return}
   gastos.push({...data,valor:Number(data.valor)});
   $("msg").textContent=`Salvo: ${brl(v)} em ${CATS.find(c=>c.id===catSel).nome}.`;
   $("valor").value="";$("desc").value="";
@@ -319,7 +325,7 @@ $("salvarRenda").onclick=async()=>{
   const v=parseBRL($("renda").value);
   if(!(v>0)){$("msg").textContent="Digite sua renda mensal, por exemplo 3.000,00.";return}
   const{error}=await sb.from("perfis").upsert({user_id:usuario.id,renda:v});
-  if(error){$("msg").textContent="Não deu para salvar a renda.";return}
+  if(error){$("msg").textContent="Não deu para salvar a renda: "+error.message;console.error(error);return}
   renda=v;$("msg").textContent=`Renda mensal salva: ${brl(v)}.`;render();
 };
 
@@ -354,7 +360,7 @@ $("sair").onclick=()=>sb.auth.signOut();
 function mostrar(sess){
   usuario=sess?sess.user:null;
   $("telaLogin").hidden=!!usuario;$("app").hidden=!usuario;
-  if(usuario){$("quem").textContent=usuario.email;carregar()}else{gastos=[];renda=0}
+  if(usuario){$("quem").textContent=usuario.email;render();carregar()}else{gastos=[];renda=0}
 }
 
 if(!window.supabase||SUPABASE_URL.startsWith("COLE_")||SUPABASE_ANON_KEY.startsWith("COLE_")){
